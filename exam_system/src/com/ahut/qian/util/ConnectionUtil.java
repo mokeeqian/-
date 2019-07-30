@@ -7,9 +7,9 @@ import java.sql.*;
  */
 public class ConnectionUtil {
 	// 数据库配置
-	private static String user = "root";
-	private static String pwd = "990505";
-	private static String url = "jdbc:mysql://localhost:3306/test?useUnicode=true&characterEncoding=utf8";
+	private static String user = "用户名";
+	private static String pwd = "密码";
+	private static String url = "jdbc:mysql://localhost:3306/数据库名?useUnicode=true&characterEncoding=utf8";
 	// 数据库驱动
 	private static String driver = "com.mysql.jdbc.Driver";
 
