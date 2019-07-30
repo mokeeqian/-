@@ -40,7 +40,7 @@ public class dbConnect {
 		//Connection conn = null;
 		try {
 			M_conn = DriverManager.getConnection("jdbc:mysql://localhost/stuManagerDB?"
-													+ "user=root&password=990505");
+								+ "user=这里写你的数据库用户名&password=这里写你的数据库密码");
 		} catch(SQLException e) {
 			System.out.println( "SqlException: " + e.getMessage() );
 			System.out.println( "SqlState: " + e.getSQLState() );
