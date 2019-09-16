@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+# encoding=utf-8 #
+# Copyright: Qian Jipeng(C) 2019
+
+import os
+import re
+import requests
+import config_loader as cfl
+from PIL import Image  # image process
+from html.parser import *  # HTMLParser
+
+view_state = []
+x = []
+
+
+# html标签解析
+class TagParser(HTMLParser):
+	def handle_starttag(self, tag, attrs):
+		if tag == 'img':
+			# 验证码
+			attrs = dict(attrs)
+			if (attrs.__contains__('id')):
+				x.append(attrs["src"])
+		# viewstate
+		if tag == 'input':
+			attrs = dict(attrs)
+			# print(attrs)
+			if attrs.__contains__('name'):
+				if attrs['name'] == '__VIEWSTATE':
+					view_state.append(attrs['value'])
+
+	# print(view_state[0]
+
+# 登录爬虫
+class Login:
+
+
+	# 这里需要自己配置
+	def __init__(self):
+		self.tagParser = TagParser()
+		self.login_url = cfl.getLoginUrl()
+		self.checkcode_url = cfl.getCheckcodeUrl()
+		self.userid = cfl.getUserId()
+		self.username = ""  # 这是从浏览器抓取的，先设为空
+		self.password = cfl.getUserPassword()
+		self.headers = {
+			    'User-Agent':r'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
+		}
+		self.checkcode = ""
+		self.config = {}  # 用于post的data
+
+	def getRequest(self):
+		return requests.get(self.login_url)
+
+	def getCookies(self):
+		return self.getRequest().cookies
+
+	# 这个方法会将解析出来的数据放在TagParser类的view_state中
+	def parseContent(self):
+
+		self.tagParser.feed(self.getRequest().text)
+
+	# 从网页抓取用户姓名
+	def parseUserName(self, data):
+		exp = '<span id="xhxm">(.*?)</span></em>'
+		info = re.findall(exp, data)
+
+	# 存取验证码图片文件
+	def saveCheckCode(self, content, filename):
+		if os.path.exists(filename):
+			os.remove(filename)
+		with open(filename, "wb") as picWriter:
+			picWriter.write(content)
+
+	# 显示验证码
+	def readCheckCode(self, filename):
+		image = Image.open(filename)
+		image.show()
+
+	# 死循环，如果登录不成功的话!
+	def tryLogin(self):
+		# while True:
+		# 解析网页数据
+		self.parseContent()
+		# self.tagParser.feed(self.getRequest().text)
+
+		checkcode = requests.get(self.checkcode_url, cookies=self.getCookies(), headers=self.headers)
+		self.saveCheckCode(checkcode.content, "../yzm.jpg")
+		self.readCheckCode("../yzm.jpg")
+		self.checkcode = input("输入图片显示的验证码:")
+		self.config = {
+			'__VIEWSTATE':view_state[0],
+			'TextBox1':self.userid,
+			'TextBox2':self.password,
+			'TextBox3':self.checkcode,
+			'RadioButtonList1':'%D1%A7%C9%FA',
+			'Button1':"",
+			'lbLanguage':'',
+		}
+
+		# try login
+		request = requests.post(url="http://211.70.149.135:88/default2.aspx", data=self.config,
+		                        headers=self.headers, cookies=self.getCookies())
+
+		# print(request.text)
+
+		pat = r'<title>(.*?)</title>'  # 获取标题的正则表达式
+		x = re.findall(pat, request.text)
+
+		# print(x)
+
+		if (x[0] == "欢迎使用正方教务管理系统！请登录"):
+			print("登陆失败")
+
+		else:
+			print("登陆成功")
+			# 抓一下名字
+			catch = '<span id="xhxm">(.*?)</span></em>'
+			name = re.findall(catch, request.text)
+			name = name[0]
+			name = name[:-2]
+			print(name)
+			# break
+
+		# # check if success
+		# if request.status_code == 200:
+		# 	print("登录成功!!!")
+		# 	#self.parseUserName(request.text)
+		# 	exp = '<span id="xhxm">(.*?)</span></em>'
+		# 	info = re.findall(exp, request.text)
+		# 	print(request.text)
+		#
+		# else:
+		# 	print("[ERROR " + request.status_code + " ]\t登录失败")
+
+
+if __name__ == '__main__':
+	login = Login()
+
+	print(view_state)
+	while True:
+		login.tagParser.feed(requests.get(login.login_url).text)
+		login.tryLogin()

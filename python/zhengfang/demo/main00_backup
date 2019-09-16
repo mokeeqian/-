@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# encoding=utf-8
+# Copyright: Qian Jipeng(C) 2019
+
+import os
+import re
+import urllib.parse
+
+import requests
+import config_loader as cfl
+from html.parser import *
+from PIL import Image
+
+
+class TagParser(HTMLParser):
+	# view_state = list()     # 有点像C++中的static变量，是类变量，不可行
+
+	def __init__(self):
+		super().__init__()
+		self.view_state = list()    # 用来存放viewstate
+
+	def __del__(self):
+		del self.view_state         # 释放资源
+
+	def handle_starttag(self, tag, attrs):
+		if tag == 'input':
+			attrs = dict(attrs)
+			if attrs.__contains__('name') and attrs['name'] == '__VIEWSTATE':
+				self.view_state.append(attrs['value'])
+
+	def doParse(self, webData):
+		self.feed(data=webData)
+
+
+class Login:
+
+	def __init__(self):
+		self.user_id = cfl.getUserId()
+		self.user_pwd = cfl.getUserPassword()
+		self.user_name = ""
+		self.login_url = cfl.getLoginUrl()
+		self.checkcode_url = cfl.getCheckcodeUrl()
+		self.cookies = requests.get(self.login_url).cookies
+		self.headers = {
+				'User-Agent': r'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
+		}
+
+		self.query_headers = {
+			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+			'Accept-Encoding': 'gzip, deflate',
+			'Accept-Language': 'en-US,en;q=0.9',
+			'Connection': 'keep-alive',
+			'Content-Type': 'text/html; charset=gb2312',
+			'Referer': '',   # cfl.getIndexUrl() + 'xskbcx.aspx?xh=' + self.user_id + "&xm=" + self.user_name + "&gnmkdm=" + kdn_code,
+			# 'Referer': website + 'xs_main.aspx?xh=' + userxh,
+			'Upgrade-Insecure-Requests': '1',
+			'User-Agent': r'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
+		}
+
+		self.config = {
+			'__VIEWSTATE': '',  # viewstate
+			'TextBox1': self.user_id,     # userid
+			'TextBox2': self.user_pwd,     # password
+			'TextBox3': '',  # checkcode
+			'RadioButtonList1': '%D1%A7%C9%FA',     # session
+			'Button1': "",
+			'lbLanguage': '',
+		}
+		self.tag_parser = TagParser()
+		self.tag_parser.doParse(requests.get(self.login_url).text)    # 解析
+
+	# 获取验证码并显示
+	def getCheckCodePic(self, filename):
+
+		pic = requests.post(url=self.checkcode_url, cookies=self.cookies, headers=self.headers)
+		if os.path.exists(filename):
+			os.remove(filename)
+		# write as byte
+		with open(filename, 'wb') as filewriter:
+			filewriter.write(pic.content)
+
+		image = Image.open(filename)        # PIL
+		image.show()
+
+	# 更新headers字典，在查询之前，必须先调用该函数
+	def updateQueryHeaders(self, referer):
+		self.query_headers['Referer'] = referer
+
+	# 应该在获取验证码后调用
+	def updateConfig(self, viewstate, checkcode):
+		self.config['__VIEWSTATE'] = viewstate
+		self.config['TextBox3'] = checkcode
+
+	# 是否登陆成功
+	def checkIfSuccess(self, webContent):
+		pattern = r'<title>(.*?)</title>'
+		items = re.findall(pattern, webContent.text)
+		if items[0] == "欢迎使用正方教务管理系统！请登录":      # 特征匹配
+			# print("登陆失败")
+			return False
+		else:
+			# print("登陆成功")
+			# 抓取名字
+			catch = '<span id="xhxm">(.*?)</span></em>'
+			name = re.findall(catch, webContent.text)
+			name = name[0][:-2]
+			# name = name[:-2]
+			print(name)
+			self.user_name = urllib.parse.quote(name.encode("gb2312"))      # 更新用户姓名
+			return True
+
+
+# 全局函数，对外接口
+def doLogin(loginobject:Login, filename:str):
+	loginobject.getCheckCodePic(filename)
+	checkcode = input("输入验证码: ")
+	loginobject.updateConfig(loginobject.tag_parser.view_state[0], checkcode)
+	print(loginobject.config)
+	content = requests.post(url=loginobject.login_url, data=loginobject.config,
+	                        headers=loginobject.headers, cookies=loginobject.cookies)
+
+	if loginobject.checkIfSuccess(content):
+		print("登陆成功!!!")
+	else:
+		print("登录失败~~~")
+
+
+
+if __name__ == '__main__':
+
+	login = Login()
+	doLogin(login, "./1.jpg")
+
+
+
