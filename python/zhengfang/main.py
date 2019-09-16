@@ -11,9 +11,13 @@ import re
 import urllib.parse
 
 import requests
+import numpy as np
 import config_loader as cfl
+import pytesser as ocr
+
 from html.parser import *
 from PIL import Image
+from libtiff import TIFF
 
 
 class TagParser(HTMLParser):
@@ -73,8 +77,8 @@ class Login:
 		self.tag_parser = TagParser()
 		self.tag_parser.doParse(requests.get(self.login_url).text)    # 解析
 
-	# 获取验证码并显示
-	def getCheckCodePic(self, filename):
+	# 获取并保存验证码图片
+	def getAndSaveCheckCode(self, filename):
 
 		pic = requests.post(url=self.checkcode_url, cookies=self.cookies, headers=self.headers)
 		if os.path.exists(filename):
@@ -82,13 +86,25 @@ class Login:
 		# write as byte
 		with open(filename, 'wb') as filewriter:
 			filewriter.write(pic.content)
-
 		image = Image.open(filename)        # PIL
-		image.show()
+		#image.show()
 
-	# # 更新headers字典，在查询之前，必须先调用该函数
-	# def updateQueryHeaders(self, referer):
-	# 	self.query_headers['Referer'] = referer
+		out_tiff = TIFF.open(filename, mode = 'w')		# TTIF
+		#img = cv2.imdecode(np.fromstring(pic.content, np.uint8) )
+		out_tiff.write_image(np.array(image), compression=None, write_rgb=False)
+		out_tiff.close()
+	
+	
+	# 调用google ocr 
+	# reutrn: string of the check code
+	def getCheckCodeString(self, filename):
+		text = str(ocr.image_file_to_string(filename))
+		print("验证码: " + text)
+		text = text.strip()     # 去除两边空格!!!
+
+		os.remove(filename)     # 删除验证码
+		return text
+
 
 	# 应该在获取验证码后调用
 	def updateConfig(self, viewstate, checkcode):
@@ -100,10 +116,8 @@ class Login:
 		pattern = r'<title>(.*?)</title>'
 		items = re.findall(pattern, webContent.text)
 		if items[0] == "欢迎使用正方教务管理系统！请登录":      # 特征匹配
-			# print("登陆失败")
 			return False
 		else:
-			# print("登陆成功")
 			# 抓取名字
 			catch = '<span id="xhxm">(.*?)</span></em>'
 			name = re.findall(catch, webContent.text)
@@ -113,73 +127,16 @@ class Login:
 			self.user_name = urllib.parse.quote(name.encode("gb2312"))      # 更新用户姓名
 			return True
 
-# # Not used
-# class Query(Login):
-#
-# 	def __init__(self):
-# 		Login.__init__(self)
-# 		self.course_url = cfl.getIndexUrl() + "xskbcx.aspx?xh=" + self.user_id + "&xm=" + self.user_name + "&gnmkdm=" + "N121603"
-# 		self.exam_url = cfl.getIndexUrl() + "xskscx.aspx?xh=" + self.user_id + "&xm=" + self.user_name + "&gnmkdm=" + "N121604"
-# 		self.query_state = ""
-# 		self.query_config = {
-# 			'__EVENTTARGET': '',
-# 			'__EVENTARGUMENT': '',
-# 			'__VIEWSTATE': '',
-# 		}
-# 		self.query_headers = {
-# 			'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-# 			'Accept-Encoding': 'gzip, deflate',
-# 			'Accept-Language': 'en-US,en;q=0.9',
-# 			'Connection': 'keep-alive',
-# 			'Content-Type': 'text/html; charset=gb2312',
-# 			#'Referer': '',
-# 			# cfl.getIndexUrl() + 'xskbcx.aspx?xh=' + self.user_id + "&xm=" + self.user_name + "&gnmkdm=" + kdn_code,
-# 			'Upgrade-Insecure-Requests': '1',
-# 			'User-Agent': r'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36',
-# 		}
-#
-# 	def updateQueryConfig(self, queryviewstate):
-# 		self.query_config['__VIEWSTATE'] = queryviewstate
-#
-# 	def updateQueryHeaders(self, referer):
-# 		self.query_headers['Referfer'] = referer
-#
-# 	def updateQueryState(self):
-# 		content = requests.get(url=self.course_url, cookies=self.cookies, headers=self.headers)
-# 		print(content.text)
-# 		catch = '<input type="hidden" name="__VIEWSTATE" value="(.*?)" />'
-# 		self.query_state = re.findall(catch, content.text)[0]
-#
-# 	# 课表查询
-# 	def queryCourse(self):
-# 		# 先配置headers
-# 		self.updateQueryHeaders(self.course_url)
-#
-# 		# print(self.query_headers)
-#
-# 		self.updateQueryState()
-# 		self.updateQueryConfig(self.query_state)
-# 		print("config")
-# 		print(self.query_config)
-# 		content = requests.session().get(url=self.course_url, data=self.query_config,
-# 		                                 headers=self.query_headers, cookies=super().cookies)
-# 		# 保存表格
-# 		catch = '<td>(.*?)</td>'
-# 		table = re.findall(catch, content.text)
-#
-# 		f = open("test.txt", "w")
-# 		for each_line in table:
-# 			if "&nbsp" in each_line:
-# 				# TODO: 数据清洗
-# 				pass
-# 			f.write(each_line + "\n")
-# 		f.close()
+
 
 
 # 全局函数，对外接口
-def doLogin(loginobject:Login, filename:str):
-	loginobject.getCheckCodePic(filename)
-	checkcode = input("输入验证码: ")
+def doLogin(loginobject:Login, filename:str, resultdir:str):
+	loginobject.getAndSaveCheckCode(filename)
+	#checkcode = input("输入验证码: ")
+	checkcode = loginobject.getCheckCodeString(filename)		# update
+	#print(checkcode)
+
 	loginobject.updateConfig(loginobject.tag_parser.view_state[0], checkcode)
 	# print(loginobject.config)
 	content = requests.post(url=loginobject.login_url, data=loginobject.config,
@@ -187,8 +144,16 @@ def doLogin(loginobject:Login, filename:str):
 
 	if loginobject.checkIfSuccess(content):
 		print("登陆成功!!!")
+
+		# 检查结果路径
+		if not os.path.exists(resultdir):
+			os.makedirs(resultdir)
+		else:
+			os.system("rm -r " + resultdir)
+
 	else:
 		print("登录失败~~~")
+		return
 
 	# query = Query()
 	# query.queryCourse()
@@ -232,7 +197,7 @@ def doLogin(loginobject:Login, filename:str):
 	course_table = re.findall(catch, course.text)
 	del course
 
-	f = open("course_table.txt", "w")
+	f = open(resultdir +"/course_table.txt", "w")
 	for each_line in course_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -258,7 +223,7 @@ def doLogin(loginobject:Login, filename:str):
 	exam_table = re.findall(catch, exam.text)
 	del exam
 
-	f = open("exam_arrangement.txt", "w")
+	f = open(resultdir +"/exam_arrangement.txt", "w")
 	for each_line in exam_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -284,7 +249,7 @@ def doLogin(loginobject:Login, filename:str):
 	classexam_table = re.findall(catch, classexam.text)
 	del classexam
 
-	f = open("class_exam.txt", "w")
+	f = open(resultdir +"/class_exam.txt", "w")
 	for each_line in classexam_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -310,7 +275,7 @@ def doLogin(loginobject:Login, filename:str):
 	plan_table = re.findall(catch, plan.text)
 	del plan
 
-	f = open("development_plan.txt", "w")
+	f = open( resultdir+"/development_plan.txt", "w")
 	for each_line in plan_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -336,7 +301,7 @@ def doLogin(loginobject:Login, filename:str):
 	select_course_table = re.findall(catch, select_course.text)
 	del select_course
 
-	f = open("select_course.txt", "w")
+	f = open(resultdir +"/select_course.txt", "w")
 	for each_line in select_course_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -362,7 +327,7 @@ def doLogin(loginobject:Login, filename:str):
 	add_exam_table = re.findall(catch, add_exam.text)
 	del add_exam
 
-	f = open("add_exam.txt", "w")
+	f = open(resultdir +"/add_exam.txt", "w")
 	for each_line in add_exam_table:
 		if "&nbsp" in each_line:
 			# TODO: 数据清洗
@@ -378,7 +343,7 @@ def doLogin(loginobject:Login, filename:str):
 if __name__ == '__main__':
 
 	login = Login()
-	doLogin(login, "./checkcode.png")
+	doLogin(login, "./checkcode.tif", "./result")
 
 
 
