@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/ivLogoLeft"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_alignParentStart="true"
+        android:layout_marginLeft="50dp"
+        android:layout_marginTop="150dp"
+        android:src="@drawable/okc">
+    </ImageView>
+
+    <ImageView
+        android:id="@+id/ivLogoRight"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_alignParentEnd="true"
+        android:layout_marginRight="50dp"
+        android:layout_marginTop="150dp"
+        android:src="@drawable/rocket">
+    </ImageView>
+
+    <TextView
+        android:id="@+id/tvNameLeft"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="50dp"
+        android:text="left team"
+        android:textColor="#E91E63"
+        android:textSize="40sp">
+    </TextView>
+
+    <TextView
+        android:id="@+id/tvNameRight"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="265dp"
+        android:text="right team"
+        android:textColor="#4CAF50"
+        android:textSize="40sp">
+    </TextView>
+
+    <TextView
+        android:id="@+id/tvLeftScore"
+        android:layout_width="100dp"
+        android:layout_height="70dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="50dp"
+        android:layout_marginBottom="250dp"
+        android:text="0"
+        android:textSize="40sp"
+        android:textColor="#E91E63"
+        >
+    </TextView>
+
+    <TextView
+        android:id="@+id/tvRightScore"
+        android:layout_width="100dp"
+        android:layout_height="70dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="265dp"
+        android:layout_marginBottom="250dp"
+        android:text="0"
+        android:textSize="40sp"
+        android:textColor="#4CAF50"
+        >
+    </TextView>
+
+    <Button
+        android:id="@+id/btnLeft"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="150dp"
+        android:layout_marginLeft="50dp"
+        android:text="+1"
+        android:textColor="#E91E63"
+        android:textSize="20sp">
+    </Button>
+
+    <Button
+        android:id="@+id/btnRight"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="150dp"
+        android:layout_marginLeft="265dp"
+        android:text="+1"
+        android:textColor="#4CAF50"
+        android:textSize="20sp">
+    </Button>
+
+    <Button
+        android:id="@+id/btnOK"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginLeft="160dp"
+        android:layout_marginBottom="50dp"
+        android:text="结束"
+        android:textColor="#ff00"
+        android:textSize="30sp">
+    </Button>
+</RelativeLayout>
